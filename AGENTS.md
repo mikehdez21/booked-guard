@@ -1,6 +1,6 @@
 # AGENTS.md — Agenda Abu
 
-Agenda familiar por días y horarios. Cada persona se identifica con un `select` de nombre; habrá una sección "Lista de personas". App privada de uso familiar, sin login por ahora.
+Agenda familiar por días y turnos. Una sola pantalla con carrusel de 30 días (extensible con "+"), un card por día y tres turnos diarios. Cualquiera con el enlace puede asignar su nombre o el de otra persona a un turno. Sin login, roles ni OAuth: coordinación familiar por mensaje.
 
 ## Stack
 
@@ -21,14 +21,15 @@ npm.cmd run typecheck
 ## Estructura
 
 ```
-app/layout.tsx        layout raíz, metadata, lang="es"
-app/page.tsx          vista inicial ("Hola Mundo")
-app/api/health/route.ts  comprueba conexión real con Supabase
-app/globals.css       estilos globales
-lib/supabase.ts       cliente de navegador, lazy (no falla en build sin env)
-supabase/schema.sql   SQL para pegar en el SQL Editor de Supabase
-.env.example          plantilla de variables
-deploy.md             pasos de despliegue
+app/layout.tsx           layout raíz, metadata, lang="es"
+app/page.tsx             renderiza <Agenda />
+app/agenda.tsx           cliente: carrusel, selects, panel de configuración
+app/api/health/route.ts  comprueba conexión real con las 3 tablas
+app/globals.css          estilos globales
+lib/supabase.ts          cliente único lazy (no falla en build sin env)
+supabase/schema.sql      SQL para pegar en el SQL Editor de Supabase
+.env.example             plantilla de variables
+deploy.md                pasos de despliegue
 ```
 
 ## Variables de entorno
@@ -43,24 +44,28 @@ Nunca poner `service_role` o `secret` en una variable `NEXT_PUBLIC_*`.
 
 ## Datos
 
-Tabla `people` (id, name único, created_at) definida en `supabase/schema.sql`.
-Pendiente: tablas de días/horarios y reservas cuando toque esa pantalla.
+- `people`: id, name (único sin distinguir mayúsculas), created_at.
+- `shifts`: turnos diarios configurables (label, start_time, end_time). Seed: Día 10:00–18:00, Tarde 18:30–23:00, Noche 23:00–09:30.
+- `assignments`: una persona por turno y fecha (`unique(shift_id, date)`); al borrar persona o turno se borran sus asignaciones.
+
+El turno Noche cruza medianoche: cuenta en la fecha en que inicia.
+Estado por día: Cubierto (todos los turnos con persona), Parcialmente (alguno), Sin cubrir (ninguno).
+El carrusel arranca en 30 días desde hoy; el botón "+" al final añade el siguiente día.
 
 ## Seguridad
 
-RLS activado en `people`: lectura e inserción públicas (enlace familiar sin login).
-shortcut: cualquiera con la URL puede añadir o ver nombres; si molesta, añadir PIN o auth de Supabase más adelante.
+RLS activado en las 3 tablas con lectura y escritura públicas (rol `anon`), sin auth.
+shortcut: cualquiera con la URL puede ver, asignar y borrar; si molesta, añadir PIN o Supabase Auth más adelante.
 
 ## Convenciones
 
-- Cambios pequeños y por pasos: primero la vista, luego los datos.
+- Cambios pequeños y por pasos.
 - Textos de UI en español.
 - No añadir dependencias sin necesidad real.
 - No crear endpoints API mientras la vista pueda leer Supabase directamente. Excepción: `/api/health`.
 - Validar entradas en el punto de escritura (formularios) y con constraints en la DB.
+- Fechas en horario local del navegador; no usar la zona del servidor.
 
 ## Siguiente
 
-1. Sección "Lista de personas" (alta + `select`).
-2. Vista de agenda por días y horarios.
-3. Reservas asociadas a persona + día + hora.
+Sin pasos pendientes definidos. Ideas si se piden: editar turnos existentes sin borrarlos, PIN de acceso, notificaciones.

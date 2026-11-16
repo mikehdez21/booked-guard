@@ -9,11 +9,11 @@ Las claves que se usan son públicas (`NEXT_PUBLIC_*`); la seguridad vive en RLS
 2. **New project** → nombre `agenda-abu`, contraseña de base de datos fuerte (guardarla), región más cercana, plan **Free**.
 3. Esperar 1–2 minutos a que termine el aprovisionamiento.
 
-## 2. Crear la tabla
+## 2. Crear las tablas
 
 1. En el proyecto: **SQL Editor** → **New query**.
-2. Pegar el contenido de `supabase/schema.sql` y pulsar **Run**.
-3. Comprobar en **Table Editor** que aparece la tabla `people`.
+2. Pegar el contenido de `supabase/schema.sql` y pulsar **Run** (ejecutar una sola vez).
+3. Comprobar en **Table Editor** que aparecen `people`, `shifts` y `assignments`, con 3 turnos de ejemplo.
 
 ## 3. Copiar credenciales
 
@@ -31,9 +31,8 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Abrir http://localhost:3000. Debe verse "Hola Mundo".
-La conexión a la DB se usará en la siguiente pantalla (lista de personas); por ahora
-se comprueba con `select * from public.people;` en el SQL Editor.
+Abrir http://localhost:3000. Debe verse el carrusel de días con los 3 turnos.
+Si no carga, revisar `/api/health`: comprueba las 3 tablas contra Supabase.
 
 ## 5. Subir a GitHub
 
