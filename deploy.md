@@ -20,7 +20,7 @@ Las claves que se usan son públicas (`NEXT_PUBLIC_*`); la seguridad vive en RLS
 En **Project Settings → API** (o **Data API**):
 
 - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-- **anon public** / **Publishable key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Publishable key** (antes `anon public`) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 ## 4. Probar en local
 
@@ -53,7 +53,7 @@ git push -u origin main
 1. https://vercel.com → acceder con GitHub.
 2. **Add New → Project** → importar el repo `agenda-abu`.
 3. Framework preset: **Next.js** (detectado solo). Root directory: `./`. No cambiar build ni output.
-4. **Environment Variables**: añadir `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (marcar Production, Preview y Development).
+4. **Environment Variables**: añadir `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (marcar Production, Preview y Development).
 5. **Deploy** y esperar. La URL `*.vercel.app` queda lista.
 
 Importante: las variables `NEXT_PUBLIC_*` se incrustan en el build. Si se cambian,
@@ -80,6 +80,6 @@ ejecutarlo a mano en el SQL Editor (no hay migraciones automáticas todavía).
 
 ## Seguridad mínima
 
-- La `anon key` es pública por diseño; no pasa nada si se ve. RLS controla el acceso.
+- La `publishable key` es pública por diseño; no pasa nada si se ve. RLS controla el acceso.
 - No usar la `service_role` key en este frontend ni en variables `NEXT_PUBLIC_*`.
 - Cualquiera con la URL puede ver y añadir personas. Si eso no vale, el siguiente paso es un PIN o Supabase Auth.

@@ -36,10 +36,10 @@ deploy.md             pasos de despliegue
 Solo públicas (se incrustan en el bundle, es normal):
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 Local: copiar `.env.example` a `.env.local`. En Vercel: Project Settings > Environment Variables.
-Nunca poner `service_role` en una variable `NEXT_PUBLIC_*`.
+Nunca poner `service_role` o `secret` en una variable `NEXT_PUBLIC_*`.
 
 ## Datos
 
