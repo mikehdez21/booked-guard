@@ -273,7 +273,7 @@ export default function Agenda() {
         <div>
           <div className="title-row">
             <h1>Agenda Abu</h1>
-            <span className="today-label">{todayLabel}</span>
+            <span className="today-label">Fecha Actual: {todayLabel}</span>
           </div>
           <p>
             {dateFmt.format(firstDay.date)} – {dateFmt.format(lastDay.date)}
