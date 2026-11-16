@@ -46,4 +46,101 @@ grant select, insert, update, delete on public.people, public.shifts, public.ass
 insert into public.shifts (label, start_time, end_time) values
   ('Día', '10:00', '18:00'),
   ('Tarde', '18:30', '23:00'),
-  ('Noche', '23:00', '09:30');
+  ('Noche', '23:00', '09:30')
+on conflict do nothing;
+
+-- Registro de acciones (solo lectura desde el cliente; escribe vía triggers).
+create table public.activity_log (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  kind text not null check (kind in ('asignacion', 'persona', 'turno')),
+  message text not null
+);
+
+alter table public.activity_log enable row level security;
+create policy "public read activity_log" on public.activity_log
+  for select to anon, authenticated using (true);
+grant select on public.activity_log to anon, authenticated;
+
+create or replace function public.log_assignment_change() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_shift text;
+  v_from text;
+  v_to text;
+  v_date date;
+begin
+  if tg_op = 'DELETE' then
+    v_date := old.date;
+    select label into v_shift from public.shifts where id = old.shift_id;
+    select name into v_from from public.people where id = old.person_id;
+    insert into public.activity_log (kind, message)
+    values ('asignacion', format('%s · %s: %s → Sin asignar',
+      coalesce(v_shift, 'Turno'), to_char(v_date, 'DD/MM'), coalesce(v_from, 'Alguien')));
+    return old;
+  end if;
+
+  if tg_op = 'UPDATE' and new.person_id = old.person_id then
+    return new;
+  end if;
+
+  v_date := new.date;
+  select label into v_shift from public.shifts where id = new.shift_id;
+  select name into v_to from public.people where id = new.person_id;
+
+  if tg_op = 'UPDATE' then
+    select name into v_from from public.people where id = old.person_id;
+  end if;
+
+  insert into public.activity_log (kind, message)
+  values ('asignacion',
+    case when v_from is null
+      then format('%s · %s: Se asignó %s', coalesce(v_shift, 'Turno'), to_char(v_date, 'DD/MM'), v_to)
+      else format('%s · %s: %s → %s', coalesce(v_shift, 'Turno'), to_char(v_date, 'DD/MM'), v_from, v_to)
+    end);
+  return new;
+end $$;
+
+create trigger assignments_log
+  after insert or update or delete on public.assignments
+  for each row execute function public.log_assignment_change();
+
+create or replace function public.log_person_added() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.activity_log (kind, message)
+  values ('persona', format('Se agregó una persona %s', new.name));
+  return new;
+end $$;
+
+create trigger people_log
+  after insert on public.people
+  for each row execute function public.log_person_added();
+
+create or replace function public.log_shift_added() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.activity_log (kind, message)
+  values ('turno', format('Se agregó un turno %s (%s–%s)',
+    new.label, to_char(new.start_time, 'HH24:MI'), to_char(new.end_time, 'HH24:MI')));
+  return new;
+end $$;
+
+create trigger shifts_log
+  after insert on public.shifts
+  for each row execute function public.log_shift_added();
+
+-- Tiempo real (websockets) para ver cambios de otros dispositivos.
+alter publication supabase_realtime add table public.people, public.shifts, public.assignments, public.activity_log;
+alter table public.people replica identity full;
+alter table public.shifts replica identity full;
+alter table public.assignments replica identity full;

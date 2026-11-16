@@ -23,7 +23,7 @@ npm.cmd run typecheck
 ```
 app/layout.tsx           layout raíz, metadata, lang="es"
 app/page.tsx             renderiza <Agenda />
-app/agenda.tsx           cliente: carrusel, selects, panel de configuración
+app/agenda.tsx           cliente: carrusel, selects, panel de configuración y registros
 app/api/health/route.ts  comprueba conexión real con las 3 tablas
 app/globals.css          estilos globales
 lib/supabase.ts          cliente único lazy (no falla en build sin env)
@@ -47,10 +47,13 @@ Nunca poner `service_role` o `secret` en una variable `NEXT_PUBLIC_*`.
 - `people`: id, name (único sin distinguir mayúsculas), created_at.
 - `shifts`: turnos diarios configurables (label, start_time, end_time). Seed: Día 10:00–18:00, Tarde 18:30–23:00, Noche 23:00–09:30.
 - `assignments`: una persona por turno y fecha (`unique(shift_id, date)`); al borrar persona o turno se borran sus asignaciones.
+- `activity_log`: registro de solo lectura escrito por triggers (cambios de asignación, altas de personas y turnos).
 
 El turno Noche cruza medianoche: cuenta en la fecha en que inicia.
-Estado por día: Cubierto (todos los turnos con persona), Parcialmente (alguno), Sin cubrir (ninguno).
+Estado por día: Cubierto (todos los turnos con persona), Parcialmente cubierto (alguno), Sin cubrir (ninguno).
 El carrusel arranca con 30 días pasados + hoy + 30 futuros, centra hoy al cargar y el "+" al final añade el siguiente día. Los pasados se ven atenuados (opacity .62) y siguen siendo consultables/editables.
+
+Tiempo real: las 4 tablas están en la publicación `supabase_realtime` (`activity_log` solo inserts) con `replica identity full`; el cliente se suscribe a `postgres_changes` y refresca los datos con debounce de 150 ms.
 
 ## Seguridad
 

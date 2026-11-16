@@ -266,6 +266,14 @@ select {
   cursor: pointer;
 }
 
+.shift select.assigned {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: #16233f;
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .shift select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -305,11 +313,17 @@ select {
   line-height: 1;
 }
 
-.fab {
+.fabs {
   position: fixed;
   right: clamp(1rem, 3vw, 2rem);
   bottom: clamp(1rem, 3vw, 2rem);
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fab {
   display: grid;
   place-items: center;
   width: 3.5rem;
@@ -321,6 +335,11 @@ select {
   cursor: pointer;
   box-shadow: 0 14px 34px -10px rgba(56, 189, 248, 0.6);
   transition: transform 0.15s ease;
+}
+
+.fab.logs {
+  background: linear-gradient(135deg, #a78bfa, #6366f1);
+  box-shadow: 0 14px 34px -10px rgba(167, 139, 250, 0.6);
 }
 
 .fab:hover {
@@ -489,6 +508,38 @@ button:focus-visible {
 
 .alert.inline {
   margin: 0 clamp(1rem, 4vw, 3rem) 1rem;
+}
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.log-item {
+  padding: 0.6rem 0.7rem;
+  border-radius: 12px;
+  border-left: 3px solid #38bdf8;
+  background: rgba(30, 41, 59, 0.6);
+  font-size: 0.88rem;
+}
+
+.log-item.persona {
+  border-left-color: #a78bfa;
+}
+
+.log-item.turno {
+  border-left-color: #f472b6;
+}
+
+.log-time {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
 }
 
 @media (max-width: 700px) {

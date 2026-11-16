@@ -13,7 +13,7 @@ Las claves que se usan son públicas (`NEXT_PUBLIC_*`); la seguridad vive en RLS
 
 1. En el proyecto: **SQL Editor** → **New query**.
 2. Pegar el contenido de `supabase/schema.sql` y pulsar **Run** (ejecutar una sola vez).
-3. Comprobar en **Table Editor** que aparecen `people`, `shifts` y `assignments`, con 3 turnos de ejemplo.
+3. Comprobar en **Table Editor** que aparecen `people`, `shifts`, `assignments` y `activity_log`, con 3 turnos de ejemplo.
 
 ## 3. Copiar credenciales
 

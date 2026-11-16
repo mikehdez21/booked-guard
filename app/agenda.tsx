@@ -7,6 +7,12 @@ type Person = { id: string; name: string };
 type Shift = { id: string; label: string; start_time: string; end_time: string };
 type Day = { key: string; date: Date };
 type AssignmentMap = Record<string, string>;
+type LogEntry = {
+  id: number;
+  created_at: string;
+  kind: "asignacion" | "persona" | "turno";
+  message: string;
+};
 
 const INITIAL_DAYS = 30;
 const PAST_DAYS = 30;
@@ -23,6 +29,12 @@ const longDateFmt = new Intl.DateTimeFormat("es", {
   weekday: "long",
   day: "numeric",
   month: "long",
+});
+const logDateFmt = new Intl.DateTimeFormat("es", {
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
 });
 
 function buildDays(futureDays: number): Day[] {
@@ -51,8 +63,13 @@ async function fetchAll() {
     db.from("shifts").select("id,label,start_time,end_time").order("start_time"),
     db.from("assignments").select("shift_id,date,person_id"),
   ]);
+  const log = await db
+    .from("activity_log")
+    .select("id,created_at,kind,message")
+    .order("created_at", { ascending: false })
+    .limit(50);
 
-  const error = people.error ?? shifts.error ?? assignments.error;
+  const error = people.error ?? shifts.error ?? assignments.error ?? log.error;
   if (error) throw error;
 
   const map: AssignmentMap = {};
@@ -64,6 +81,7 @@ async function fetchAll() {
     people: (people.data ?? []) as Person[],
     shifts: (shifts.data ?? []) as Shift[],
     assignments: map,
+    logs: (log.data ?? []) as LogEntry[],
   };
 }
 
@@ -71,7 +89,7 @@ function dayStatus(dayKey: string, shifts: Shift[], assignments: AssignmentMap) 
   if (!shifts.length) return { tone: "empty", label: "Sin turnos" };
   const covered = shifts.filter((shift) => assignments[`${dayKey}|${shift.id}`]).length;
   if (covered === shifts.length) return { tone: "full", label: "Cubierto" };
-  if (covered > 0) return { tone: "partial", label: "Parcialmente" };
+  if (covered > 0) return { tone: "partial", label: "Parcialmente cubierto" };
   return { tone: "empty", label: "Sin cubrir" };
 }
 
@@ -81,6 +99,7 @@ export default function Agenda() {
   const [people, setPeople] = useState<Person[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [assignments, setAssignments] = useState<AssignmentMap>({});
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -92,13 +111,16 @@ export default function Agenda() {
   const [shiftEnd, setShiftEnd] = useState("18:00");
 
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const logsRef = useRef<HTMLDialogElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const refreshTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     const data = await fetchAll();
     setPeople(data.people);
     setShifts(data.shifts);
     setAssignments(data.assignments);
+    setLogs(data.logs);
   }, []);
 
   const retry = useCallback(() => {
@@ -116,6 +138,29 @@ export default function Agenda() {
   useEffect(() => {
     retry();
   }, [retry]);
+
+  useEffect(() => {
+    if (loading || loadFailed) return;
+    const db = supabase();
+    const schedule = () => {
+      if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = window.setTimeout(() => {
+        refresh().catch((e) => setError(friendly(e)));
+      }, 150);
+    };
+    const channel = db
+      .channel("agenda-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "assignments" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "people" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, schedule)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_log" }, schedule)
+      .subscribe();
+
+    return () => {
+      if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
+      db.removeChannel(channel);
+    };
+  }, [loading, loadFailed, refresh]);
 
   useEffect(() => {
     if (loading || loadFailed) return;
@@ -328,6 +373,7 @@ export default function Agenda() {
                       </span>
                     </span>
                     <select
+                      className={assignments[`${day.key}|${shift.id}`] ? "assigned" : undefined}
                       aria-label={`${shift.label} del ${dateFmt.format(day.date)}`}
                       value={assignments[`${day.key}|${shift.id}`] ?? ""}
                       onChange={(event) => assign(day.key, shift.id, event.target.value)}
@@ -361,18 +407,32 @@ export default function Agenda() {
         </button>
       </div>
 
-      <button
-        className="fab"
-        onClick={() => dialogRef.current?.showModal()}
-        aria-label="Configurar personas y horarios"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M4 7h16M4 12h16M4 17h16" />
-          <circle cx="9" cy="7" r="2" fill="currentColor" stroke="none" />
-          <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
-          <circle cx="8" cy="17" r="2" fill="currentColor" stroke="none" />
-        </svg>
-      </button>
+      <div className="fabs">
+        <button
+          className="fab"
+          onClick={() => dialogRef.current?.showModal()}
+          aria-label="Configurar personas y horarios"
+          title="Configuración"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+            <circle cx="9" cy="7" r="2" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
+            <circle cx="8" cy="17" r="2" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+        <button
+          className="fab logs"
+          onClick={() => logsRef.current?.showModal()}
+          aria-label="Ver registros de cambios"
+          title="Logs"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" />
+            <path d="M12 8v4l3 2" />
+          </svg>
+        </button>
+      </div>
 
       <dialog
         ref={dialogRef}
@@ -491,6 +551,37 @@ export default function Agenda() {
               {!shifts.length && <li className="muted">Aún no hay turnos.</li>}
             </ul>
           </section>
+        </div>
+      </dialog>
+
+      <dialog
+        ref={logsRef}
+        className="config"
+        onClick={(event) => {
+          if (event.target === logsRef.current) logsRef.current?.close();
+        }}
+      >
+        <div className="config-body">
+          <header className="config-head">
+            <h2>Registros</h2>
+            <button
+              type="button"
+              onClick={() => logsRef.current?.close()}
+              aria-label="Cerrar registros"
+            >
+              ×
+            </button>
+          </header>
+
+          <ul className="log-list">
+            {logs.map((entry) => (
+              <li key={entry.id} className={`log-item ${entry.kind}`}>
+                <span className="log-time">{logDateFmt.format(new Date(entry.created_at))}</span>
+                <span>{entry.message}</span>
+              </li>
+            ))}
+            {!logs.length && <li className="muted">Aún no hay movimientos.</li>}
+          </ul>
         </div>
       </dialog>
     </main>
