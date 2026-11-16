@@ -139,8 +139,24 @@ create trigger shifts_log
   after insert on public.shifts
   for each row execute function public.log_shift_added();
 
+-- Ajustes compartidos (días futuros visibles en el carrusel).
+create table public.app_settings (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.app_settings enable row level security;
+create policy "public read app_settings" on public.app_settings for select to anon, authenticated using (true);
+create policy "public insert app_settings" on public.app_settings for insert to anon, authenticated with check (true);
+create policy "public update app_settings" on public.app_settings for update to anon, authenticated using (true) with check (true);
+grant select, insert, update on public.app_settings to anon, authenticated;
+
+insert into public.app_settings (key, value) values ('future_days', '30')
+on conflict (key) do nothing;
+
 -- Tiempo real (websockets) para ver cambios de otros dispositivos.
-alter publication supabase_realtime add table public.people, public.shifts, public.assignments, public.activity_log;
+alter publication supabase_realtime add table public.people, public.shifts, public.assignments, public.activity_log, public.app_settings;
 alter table public.people replica identity full;
 alter table public.shifts replica identity full;
 alter table public.assignments replica identity full;

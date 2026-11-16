@@ -68,8 +68,14 @@ async function fetchAll() {
     .select("id,created_at,kind,message")
     .order("created_at", { ascending: false })
     .limit(50);
+  const settings = await db
+    .from("app_settings")
+    .select("value")
+    .eq("key", "future_days")
+    .maybeSingle();
 
-  const error = people.error ?? shifts.error ?? assignments.error ?? log.error;
+  const error =
+    people.error ?? shifts.error ?? assignments.error ?? log.error ?? settings.error;
   if (error) throw error;
 
   const map: AssignmentMap = {};
@@ -82,6 +88,7 @@ async function fetchAll() {
     shifts: (shifts.data ?? []) as Shift[],
     assignments: map,
     logs: (log.data ?? []) as LogEntry[],
+    futureDays: Math.max(INITIAL_DAYS, Number(settings.data?.value) || INITIAL_DAYS),
   };
 }
 
@@ -114,6 +121,7 @@ export default function Agenda() {
   const logsRef = useRef<HTMLDialogElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const refreshTimer = useRef<number | null>(null);
+  const dayCountRef = useRef(INITIAL_DAYS);
 
   const refresh = useCallback(async () => {
     const data = await fetchAll();
@@ -121,6 +129,9 @@ export default function Agenda() {
     setShifts(data.shifts);
     setAssignments(data.assignments);
     setLogs(data.logs);
+    const count = Math.max(dayCountRef.current, data.futureDays);
+    dayCountRef.current = count;
+    setDayCount(count);
   }, []);
 
   const retry = useCallback(() => {
@@ -154,6 +165,7 @@ export default function Agenda() {
       .on("postgres_changes", { event: "*", schema: "public", table: "people" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, schedule)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_log" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, schedule)
       .subscribe();
 
     return () => {
@@ -268,7 +280,18 @@ export default function Agenda() {
   }
 
   function addDay() {
-    setDayCount((count) => count + 1);
+    const next = dayCountRef.current + 1;
+    dayCountRef.current = next;
+    setDayCount(next);
+    supabase()
+      .from("app_settings")
+      .upsert({ key: "future_days", value: String(next) }, { onConflict: "key" })
+      .then(({ error: saveError }) => {
+        if (saveError) {
+          setError(friendly(saveError));
+          refresh().catch(() => {});
+        }
+      });
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const track = trackRef.current;
@@ -307,8 +330,6 @@ export default function Agenda() {
     );
   }
 
-  const firstDay = days[0];
-  const lastDay = days[days.length - 1];
   const todayKey = iso(new Date());
   const todayLabel = cap(longDateFmt.format(new Date()));
 
@@ -320,9 +341,6 @@ export default function Agenda() {
             <h1>Agenda Abu</h1>
             <span className="today-label">Fecha Actual: {todayLabel}</span>
           </div>
-          <p>
-            {dateFmt.format(firstDay.date)} – {dateFmt.format(lastDay.date)}
-          </p>
         </div>
         <nav className="nav" aria-label="Días">
           <button onClick={() => scrollDays(-1)} aria-label="Días anteriores">
