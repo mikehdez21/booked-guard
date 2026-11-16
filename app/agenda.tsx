@@ -9,6 +9,7 @@ type Day = { key: string; date: Date };
 type AssignmentMap = Record<string, string>;
 
 const INITIAL_DAYS = 30;
+const PAST_DAYS = 30;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const iso = (date: Date) =>
@@ -18,13 +19,18 @@ const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const weekdayFmt = new Intl.DateTimeFormat("es", { weekday: "long" });
 const dateFmt = new Intl.DateTimeFormat("es", { day: "numeric", month: "short" });
+const longDateFmt = new Intl.DateTimeFormat("es", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
 
-function buildDays(count: number): Day[] {
+function buildDays(futureDays: number): Day[] {
   const base = new Date();
   base.setHours(12, 0, 0, 0);
-  return Array.from({ length: count }, (_, i) => {
+  return Array.from({ length: PAST_DAYS + 1 + futureDays }, (_, i) => {
     const date = new Date(base);
-    date.setDate(base.getDate() + i);
+    date.setDate(base.getDate() - PAST_DAYS + i);
     return { key: iso(date), date };
   });
 }
@@ -43,7 +49,7 @@ async function fetchAll() {
   const [people, shifts, assignments] = await Promise.all([
     db.from("people").select("id,name").order("name"),
     db.from("shifts").select("id,label,start_time,end_time").order("start_time"),
-    db.from("assignments").select("shift_id,date,person_id").gte("date", iso(new Date())),
+    db.from("assignments").select("shift_id,date,person_id"),
   ]);
 
   const error = people.error ?? shifts.error ?? assignments.error;
@@ -110,6 +116,22 @@ export default function Agenda() {
   useEffect(() => {
     retry();
   }, [retry]);
+
+  useEffect(() => {
+    if (loading || loadFailed) return;
+    const track = trackRef.current;
+    if (!track) return;
+    const today = iso(new Date());
+    const card = [...track.querySelectorAll<HTMLElement>(".day-card")].find(
+      (element) => element.dataset.day === today
+    );
+    if (!card) return;
+    const frame = requestAnimationFrame(() => {
+      const delta = card.getBoundingClientRect().left - track.getBoundingClientRect().left;
+      track.scrollLeft += delta - (track.clientWidth - card.offsetWidth) / 2;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loading, loadFailed]);
 
   async function mutate(
     action: () => PromiseLike<{ error: { message: string; code?: string } | null }>,
@@ -243,12 +265,16 @@ export default function Agenda() {
   const firstDay = days[0];
   const lastDay = days[days.length - 1];
   const todayKey = iso(new Date());
+  const todayLabel = cap(longDateFmt.format(new Date()));
 
   return (
     <main className="agenda">
       <header className="topbar">
         <div>
-          <h1>Agenda Abu</h1>
+          <div className="title-row">
+            <h1>Agenda Abu</h1>
+            <span className="today-label">{todayLabel}</span>
+          </div>
           <p>
             {dateFmt.format(firstDay.date)} – {dateFmt.format(lastDay.date)}
           </p>
@@ -273,13 +299,19 @@ export default function Agenda() {
         {days.map((day) => {
           const status = dayStatus(day.key, shifts, assignments);
           const isToday = day.key === todayKey;
+          const isPast = day.key < todayKey;
           return (
-            <article key={day.key} className={`day-card${isToday ? " today" : ""}`}>
+            <article
+              key={day.key}
+              data-day={day.key}
+              className={`day-card${isToday ? " today" : ""}${isPast ? " past" : ""}`}
+            >
               <header className="day-head">
                 <div>
                   <p className="day-weekday">
                     {cap(weekdayFmt.format(day.date))}
                     {isToday && <span className="today-tag">Hoy</span>}
+                    {isPast && <span className="past-tag">Día anterior</span>}
                   </p>
                   <p className="day-date">{dateFmt.format(day.date)}</p>
                 </div>

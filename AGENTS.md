@@ -1,6 +1,6 @@
 # AGENTS.md — Agenda Abu
 
-Agenda familiar por días y turnos. Una sola pantalla con carrusel de 30 días (extensible con "+"), un card por día y tres turnos diarios. Cualquiera con el enlace puede asignar su nombre o el de otra persona a un turno. Sin login, roles ni OAuth: coordinación familiar por mensaje.
+Agenda familiar por días y turnos. Una sola pantalla con carrusel de 30 días pasados + 30 futuros (extensible con "+"), un card por día y tres turnos diarios. El día actual queda centrado y los pasados se atenúan con la etiqueta "Día anterior". Cualquiera con el enlace puede asignar su nombre o el de otra persona a un turno. Sin login, roles ni OAuth: coordinación familiar por mensaje.
 
 ## Stack
 
@@ -50,7 +50,7 @@ Nunca poner `service_role` o `secret` en una variable `NEXT_PUBLIC_*`.
 
 El turno Noche cruza medianoche: cuenta en la fecha en que inicia.
 Estado por día: Cubierto (todos los turnos con persona), Parcialmente (alguno), Sin cubrir (ninguno).
-El carrusel arranca en 30 días desde hoy; el botón "+" al final añade el siguiente día.
+El carrusel arranca con 30 días pasados + hoy + 30 futuros, centra hoy al cargar y el "+" al final añade el siguiente día. Los pasados se ven atenuados (opacity .62) y siguen siendo consultables/editables.
 
 ## Seguridad
 

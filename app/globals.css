@@ -67,6 +67,18 @@ select {
   color: transparent;
 }
 
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.today-label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
 .topbar p {
   margin: 0.3rem 0 0;
   color: #94a3b8;
@@ -109,7 +121,7 @@ select {
 
 .day-card {
   flex: 0 0 clamp(270px, 26vw, 340px);
-  scroll-snap-align: start;
+  scroll-snap-align: center;
   display: flex;
   flex-direction: column;
   min-height: min(60vh, 540px);
@@ -124,6 +136,15 @@ select {
   box-shadow:
     0 0 0 1px rgba(56, 189, 248, 0.25),
     0 24px 48px -24px rgba(56, 189, 248, 0.4);
+}
+
+.day-card.past {
+  opacity: 0.62;
+}
+
+.day-card.past:hover,
+.day-card.past:focus-within {
+  opacity: 1;
 }
 
 .day-head {
@@ -154,6 +175,19 @@ select {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 0.15rem;
+}
+
+.past-tag {
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #94a3b8;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   vertical-align: 0.15rem;
 }
