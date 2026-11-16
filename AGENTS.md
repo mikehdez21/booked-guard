@@ -23,6 +23,7 @@ npm.cmd run typecheck
 ```
 app/layout.tsx        layout raíz, metadata, lang="es"
 app/page.tsx          vista inicial ("Hola Mundo")
+app/api/health/route.ts  comprueba conexión real con Supabase
 app/globals.css       estilos globales
 lib/supabase.ts       cliente de navegador, lazy (no falla en build sin env)
 supabase/schema.sql   SQL para pegar en el SQL Editor de Supabase
@@ -55,7 +56,7 @@ shortcut: cualquiera con la URL puede añadir o ver nombres; si molesta, añadir
 - Cambios pequeños y por pasos: primero la vista, luego los datos.
 - Textos de UI en español.
 - No añadir dependencias sin necesidad real.
-- No crear endpoints API mientras la vista pueda leer Supabase directamente.
+- No crear endpoints API mientras la vista pueda leer Supabase directamente. Excepción: `/api/health`.
 - Validar entradas en el punto de escritura (formularios) y con constraints en la DB.
 
 ## Siguiente
