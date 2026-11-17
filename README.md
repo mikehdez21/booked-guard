@@ -1,76 +1,76 @@
-# Agenda familiar
+# Family Schedule
 
-Aplicación web de una sola pantalla para coordinar turnos familiares por día. Un carrusel muestra los días con tres turnos fijos (Día, Tarde y Noche); en cada turno se elige la persona y se ajustan las horas de ese día. Los cambios se sincronizan en tiempo real entre dispositivos.
+A single-screen web app for coordinating family shifts by day. A carousel shows the days with three fixed shifts (Day, Afternoon and Night); for each shift you pick a person and adjust that day's hours. Changes sync in real time across devices.
 
-## Funcionalidades
+## Features
 
-- Carrusel de 30 días pasados y 30 futuros; el día actual queda centrado y los días pasados se muestran atenuados.
-- Botón "+" al final para añadir el siguiente día (queda guardado en la base de datos).
-- Tres turnos fijos por día: Día, Tarde y Noche. No se pueden crear ni eliminar turnos.
-- Horarios editables por día y turno con campos de inicio y fin.
-- Un select de persona por turno; solo puede haber una persona asignada.
-- Estado por día: Cubierto, Parcialmente cubierto o Sin cubrir.
-- Panel de configuración con la lista de personas.
-- Registro de cambios: asignaciones (incluye cambios de una persona a otra), altas de personas y altas de turnos.
-- Diseño responsive: menú de engrane en móvil y botones flotantes en escritorio.
-- Sin login ni roles: pensada para compartir por un enlace privado de confianza.
+- Carousel with 30 past days and 30 future days; today is centered and past days are dimmed.
+- "+" button at the end to add the next day (persisted in the database).
+- Three fixed shifts per day: Day, Afternoon and Night. New shifts cannot be created or deleted.
+- Per-day, per-shift editable hours with start and end time fields.
+- One person selector per shift; only one person can be assigned.
+- Day status: Covered, Partially covered or Uncovered.
+- Settings panel with the list of people.
+- Change log for assignments (including person-to-person changes), new people and new shifts.
+- Responsive layout: gear menu on mobile, floating buttons on desktop.
+- No login or roles: intended to be shared through a private, trusted link.
 
 ## Stack
 
 - Next.js 16 (App Router) + React 19 + TypeScript.
-- CSS plano, sin frameworks de UI.
-- Supabase (Postgres + Realtime) como base de datos.
-- Vercel para el despliegue.
+- Plain CSS, no UI frameworks.
+- Supabase (Postgres + Realtime) as the database.
+- Vercel for deployment.
 
-## Puesta en marcha
+## Getting started
 
-Requisitos: Node.js 22 o superior, npm y un proyecto de Supabase.
+Requirements: Node.js 22 or newer, npm and a Supabase project.
 
-1. Instalar dependencias:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Crear las tablas ejecutando `supabase/schema.sql` en el SQL Editor de Supabase.
+2. Create the tables by running `supabase/schema.sql` in the Supabase SQL Editor.
 
-3. Copiar `.env.example` a `.env.local` y completar:
+3. Copy `.env.example` to `.env.local` and fill in:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-4. Arrancar en local:
+4. Start the development server:
 
 ```bash
 npm run dev
 ```
 
-En Windows, si `npm` está bloqueado por la política de ejecución de PowerShell, usar `npm.cmd`.
+On Windows, if `npm` is blocked by the PowerShell execution policy, use `npm.cmd`.
 
 ## Scripts
 
-| Comando | Descripción |
+| Command | Description |
 |---|---|
-| `npm run dev` | Servidor de desarrollo |
-| `npm run build` | Build de producción |
-| `npm run start` | Servir el build |
-| `npm run typecheck` | Comprobar tipos |
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run typecheck` | Type checking |
 
-## Despliegue
+## Deployment
 
-Los pasos detallados para Supabase y Vercel están en [`deploy.md`](deploy.md).
+Detailed steps for Supabase and Vercel are in [`deploy.md`](deploy.md).
 
-## Estructura
+## Structure
 
 ```
-app/            páginas, componente de agenda y estilos
-lib/            cliente de Supabase
-supabase/       esquema SQL
-deploy.md       guía de despliegue
+app/            pages, agenda component and styles
+lib/            Supabase client
+supabase/       SQL schema
+deploy.md       deployment guide
 ```
 
-## Seguridad
+## Security
 
-La aplicación no tiene autenticación. La lectura y escritura están abiertas mediante RLS para que el enlace familiar funcione sin cuentas: cualquier persona con la URL puede ver y modificar los turnos. No compartir el enlace fuera del grupo de confianza.
+The app has no authentication. Reads and writes are open through RLS so the family link works without accounts: anyone with the URL can view and change shifts. Do not share the link outside the trusted group.
