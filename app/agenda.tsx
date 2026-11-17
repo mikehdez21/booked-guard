@@ -366,7 +366,7 @@ export default function Agenda() {
       <header className="topbar">
         <div>
           <div className="title-row">
-            <h1>Agenda Abu</h1>
+            <h1>Booked Guard</h1>
             <span className="today-label">Fecha Actual: {todayLabel}</span>
           </div>
         </div>

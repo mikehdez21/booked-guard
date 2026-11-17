@@ -1,4 +1,4 @@
-# AGENTS.md — Agenda Abu
+# AGENTS.md — Booked Guard
 
 Agenda familiar por días y turnos. Una sola pantalla con carrusel de 30 días pasados + 30 futuros (extensible con "+"), un card por día y tres turnos diarios. El día actual queda centrado y los pasados se atenúan con la etiqueta "Día anterior". Cualquiera con el enlace puede asignar su nombre o el de otra persona a un turno. Sin login, roles ni OAuth: coordinación familiar por mensaje.
 
