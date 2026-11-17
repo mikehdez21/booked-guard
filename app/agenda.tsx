@@ -7,6 +7,8 @@ type Person = { id: string; name: string };
 type Shift = { id: string; label: string; start_time: string; end_time: string };
 type Day = { key: string; date: Date };
 type AssignmentMap = Record<string, string>;
+type ShiftTime = { start_time: string; end_time: string };
+type ShiftTimesMap = Record<string, ShiftTime>;
 type LogEntry = {
   id: number;
   created_at: string;
@@ -58,10 +60,11 @@ function friendly(error: unknown): string {
 
 async function fetchAll() {
   const db = supabase();
-  const [people, shifts, assignments] = await Promise.all([
+  const [people, shifts, assignments, times] = await Promise.all([
     db.from("people").select("id,name").order("name"),
-    db.from("shifts").select("id,label,start_time,end_time").order("start_time"),
+    db.from("shifts").select("id,label,start_time,end_time").order("position"),
     db.from("assignments").select("shift_id,date,person_id"),
+    db.from("shift_times").select("shift_id,date,start_time,end_time"),
   ]);
   const log = await db
     .from("activity_log")
@@ -75,7 +78,12 @@ async function fetchAll() {
     .maybeSingle();
 
   const error =
-    people.error ?? shifts.error ?? assignments.error ?? log.error ?? settings.error;
+    people.error ??
+    shifts.error ??
+    assignments.error ??
+    times.error ??
+    log.error ??
+    settings.error;
   if (error) throw error;
 
   const map: AssignmentMap = {};
@@ -83,10 +91,19 @@ async function fetchAll() {
     map[`${row.date}|${row.shift_id}`] = row.person_id;
   }
 
+  const timesMap: ShiftTimesMap = {};
+  for (const row of times.data ?? []) {
+    timesMap[`${row.date}|${row.shift_id}`] = {
+      start_time: row.start_time,
+      end_time: row.end_time,
+    };
+  }
+
   return {
     people: (people.data ?? []) as Person[],
     shifts: (shifts.data ?? []) as Shift[],
     assignments: map,
+    shiftTimes: timesMap,
     logs: (log.data ?? []) as LogEntry[],
     futureDays: Math.max(INITIAL_DAYS, Number(settings.data?.value) || INITIAL_DAYS),
   };
@@ -106,6 +123,7 @@ export default function Agenda() {
   const [people, setPeople] = useState<Person[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [assignments, setAssignments] = useState<AssignmentMap>({});
+  const [shiftTimes, setShiftTimes] = useState<ShiftTimesMap>({});
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -113,9 +131,6 @@ export default function Agenda() {
   const [error, setError] = useState<string | null>(null);
 
   const [personName, setPersonName] = useState("");
-  const [shiftLabel, setShiftLabel] = useState("");
-  const [shiftStart, setShiftStart] = useState("10:00");
-  const [shiftEnd, setShiftEnd] = useState("18:00");
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const logsRef = useRef<HTMLDialogElement>(null);
@@ -128,6 +143,7 @@ export default function Agenda() {
     setPeople(data.people);
     setShifts(data.shifts);
     setAssignments(data.assignments);
+    setShiftTimes(data.shiftTimes);
     setLogs(data.logs);
     const count = Math.max(dayCountRef.current, data.futureDays);
     dayCountRef.current = count;
@@ -164,6 +180,7 @@ export default function Agenda() {
       .on("postgres_changes", { event: "*", schema: "public", table: "assignments" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "people" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shift_times" }, schedule)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_log" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, schedule)
       .subscribe();
@@ -225,28 +242,38 @@ export default function Agenda() {
     await mutate(() => supabase().from("people").delete().eq("id", person.id));
   }
 
-  async function addShift(event: FormEvent) {
-    event.preventDefault();
-    if (!shiftLabel.trim()) {
-      setError("Ponle un nombre al turno.");
-      return;
-    }
-    await mutate(
-      () =>
-        supabase().from("shifts").insert({
-          label: shiftLabel.trim(),
-          start_time: shiftStart,
-          end_time: shiftEnd,
-        }),
-      () => setShiftLabel("")
-    );
-  }
+  async function updateShiftTime(
+    dayKey: string,
+    shift: Shift,
+    field: "start_time" | "end_time",
+    value: string
+  ) {
+    if (!value) return;
+    const key = `${dayKey}|${shift.id}`;
+    const current = shiftTimes[key] ?? {
+      start_time: shift.start_time,
+      end_time: shift.end_time,
+    };
+    const next = { ...current, [field]: value };
+    setShiftTimes((prev) => ({ ...prev, [key]: next }));
+    setError(null);
 
-  async function removeShift(shift: Shift) {
-    if (!window.confirm(`¿Eliminar el turno ${shift.label}? Se borrarán sus asignaciones.`)) {
-      return;
+    const { error: saveError } = await supabase()
+      .from("shift_times")
+      .upsert(
+        {
+          shift_id: shift.id,
+          date: dayKey,
+          start_time: next.start_time,
+          end_time: next.end_time,
+        },
+        { onConflict: "shift_id,date" }
+      );
+
+    if (saveError) {
+      setError(friendly(saveError));
+      refresh().catch(() => {});
     }
-    await mutate(() => supabase().from("shifts").delete().eq("id", shift.id));
   }
 
   async function assign(dayKey: string, shiftId: string, personId: string) {
@@ -382,38 +409,71 @@ export default function Agenda() {
               </header>
 
               <div className="shifts">
-                {shifts.map((shift) => (
-                  <label className="shift" key={shift.id}>
-                    <span className="shift-info">
-                      <span className="shift-label">{shift.label}</span>
-                      <span className="shift-time">
-                        {hhmm(shift.start_time)} – {hhmm(shift.end_time)}
+                {shifts.map((shift) => {
+                  const time = shiftTimes[`${day.key}|${shift.id}`] ?? {
+                    start_time: shift.start_time,
+                    end_time: shift.end_time,
+                  };
+                  return (
+                    <div className="shift" key={shift.id}>
+                      <span className="shift-info">
+                        <span className="shift-label">{shift.label}</span>
                       </span>
-                    </span>
-                    <select
-                      className={assignments[`${day.key}|${shift.id}`] ? "assigned" : undefined}
-                      aria-label={`${shift.label} del ${dateFmt.format(day.date)}`}
-                      value={assignments[`${day.key}|${shift.id}`] ?? ""}
-                      onChange={(event) => assign(day.key, shift.id, event.target.value)}
-                      disabled={!people.length || busy}
-                    >
-                      <option value="">
-                        {people.length ? "Sin asignar" : "Sin personas"}
-                      </option>
-                      {people.map((person) => (
-                        <option key={person.id} value={person.id}>
-                          {person.name}
+                      <select
+                        className={assignments[`${day.key}|${shift.id}`] ? "assigned" : undefined}
+                        aria-label={`${shift.label} del ${dateFmt.format(day.date)}`}
+                        value={assignments[`${day.key}|${shift.id}`] ?? ""}
+                        onChange={(event) => assign(day.key, shift.id, event.target.value)}
+                        disabled={!people.length || busy}
+                      >
+                        <option value="">
+                          {people.length ? "Sin asignar" : "Sin personas"}
                         </option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
+                        {people.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="shift-times">
+                        <label className="time-field">
+                          <span>Inicio</span>
+                          <input
+                            type="time"
+                            value={hhmm(time.start_time)}
+                            onChange={(event) =>
+                              updateShiftTime(
+                                day.key,
+                                shift,
+                                "start_time",
+                                event.target.value
+                              )
+                            }
+                            aria-label={`Inicio ${shift.label} del ${dateFmt.format(day.date)}`}
+                          />
+                        </label>
+                        <label className="time-field">
+                          <span>Fin</span>
+                          <input
+                            type="time"
+                            value={hhmm(time.end_time)}
+                            onChange={(event) =>
+                              updateShiftTime(
+                                day.key,
+                                shift,
+                                "end_time",
+                                event.target.value
+                              )
+                            }
+                            aria-label={`Fin ${shift.label} del ${dateFmt.format(day.date)}`}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
 
-                {!shifts.length && (
-                  <p className="empty">
-                    Sin turnos. Añádelos desde el botón de configuración.
-                  </p>
-                )}
+                {!shifts.length && <p className="empty">Sin turnos configurados.</p>}
               </div>
             </article>
           );
@@ -429,7 +489,7 @@ export default function Agenda() {
         <button
           className="fab"
           onClick={() => dialogRef.current?.showModal()}
-          aria-label="Configurar personas y horarios"
+          aria-label="Configurar personas"
           title="Configuración"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -507,66 +567,6 @@ export default function Agenda() {
                 </li>
               ))}
               {!people.length && <li className="muted">Aún no hay personas.</li>}
-            </ul>
-          </section>
-
-          <section>
-            <h3>Horarios</h3>
-            <form className="shift-form" onSubmit={addShift}>
-              <input
-                value={shiftLabel}
-                onChange={(event) => setShiftLabel(event.target.value)}
-                placeholder="Nombre del turno (ej. Día)"
-                name="shift-label"
-                maxLength={40}
-                aria-label="Nombre del turno"
-              />
-              <div className="times">
-                <label>
-                  Inicio
-                  <input
-                    type="time"
-                    value={shiftStart}
-                    onChange={(event) => setShiftStart(event.target.value)}
-                    name="shift-start"
-                    required
-                  />
-                </label>
-                <label>
-                  Fin
-                  <input
-                    type="time"
-                    value={shiftEnd}
-                    onChange={(event) => setShiftEnd(event.target.value)}
-                    name="shift-end"
-                    required
-                  />
-                </label>
-              </div>
-              <button type="submit" disabled={busy || !shiftLabel.trim()}>
-                Añadir turno
-              </button>
-            </form>
-            <ul className="config-list">
-              {shifts.map((shift) => (
-                <li key={shift.id}>
-                  <span>
-                    <strong>{shift.label}</strong>{" "}
-                    <span className="muted">
-                      {hhmm(shift.start_time)} – {hhmm(shift.end_time)}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeShift(shift)}
-                    disabled={busy}
-                    aria-label={`Eliminar turno ${shift.label}`}
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-              {!shifts.length && <li className="muted">Aún no hay turnos.</li>}
             </ul>
           </section>
         </div>

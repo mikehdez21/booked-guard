@@ -45,16 +45,17 @@ Nunca poner `service_role` o `secret` en una variable `NEXT_PUBLIC_*`.
 ## Datos
 
 - `people`: id, name (único sin distinguir mayúsculas), created_at.
-- `shifts`: turnos diarios configurables (label, start_time, end_time). Seed: Día 10:00–18:00, Tarde 18:30–23:00, Noche 23:00–09:30.
+- `shifts`: exactamente tres turnos fijos (Día, Tarde, Noche) con posición y horario por defecto.
+- `shift_times`: override de horario por fecha y turno; se edita inline en cada card. Si no existe fila, aplican los horarios por defecto de `shifts`.
 - `assignments`: una persona por turno y fecha (`unique(shift_id, date)`); al borrar persona o turno se borran sus asignaciones.
 - `activity_log`: registro de solo lectura escrito por triggers (cambios de asignación, altas de personas y turnos).
 - `app_settings`: ajustes compartidos; `future_days` guarda cuántos días futuros muestra el carrusel (el "+" lo incrementa y persiste).
 
 El turno Noche cruza medianoche: cuenta en la fecha en que inicia.
 Estado por día: Cubierto (todos los turnos con persona), Parcialmente cubierto (alguno), Sin cubrir (ninguno).
-El carrusel arranca con 30 días pasados + hoy + 30 futuros, centra hoy al cargar y el "+" al final añade el siguiente día. Los pasados se ven atenuados (opacity .62) y siguen siendo consultables/editables.
+El carrusel arranca con 30 días pasados + hoy + 30 futuros, centra hoy al cargar y el "+" al final añade el siguiente día. Los pasados se ven atenuados (opacity .62) y siguen siendo consultables/editables. No se añaden turnos: siempre son Día, Tarde y Noche; las horas se ajustan por día en el propio card.
 
-Tiempo real: las 5 tablas están en la publicación `supabase_realtime` (`activity_log` solo inserts) con `replica identity full`; el cliente se suscribe a `postgres_changes` y refresca los datos con debounce de 150 ms.
+Tiempo real: las 6 tablas están en la publicación `supabase_realtime` (`activity_log` solo inserts) con `replica identity full`; el cliente se suscribe a `postgres_changes` y refresca los datos con debounce de 150 ms.
 
 ## Seguridad
 

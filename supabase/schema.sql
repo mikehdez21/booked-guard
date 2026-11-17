@@ -8,7 +8,8 @@ create unique index if not exists people_name_lower_key on public.people (lower(
 
 create table if not exists public.shifts (
   id uuid primary key default gen_random_uuid(),
-  label text not null check (char_length(trim(label)) between 1 and 40),
+  label text not null unique check (label in ('Día', 'Tarde', 'Noche')),
+  position smallint not null unique check (position between 1 and 3),
   start_time time not null,
   end_time time not null,
   created_at timestamptz not null default now()
@@ -23,9 +24,20 @@ create table if not exists public.assignments (
   unique (shift_id, date)
 );
 
+create table if not exists public.shift_times (
+  id uuid primary key default gen_random_uuid(),
+  shift_id uuid not null references public.shifts(id) on delete cascade,
+  date date not null,
+  start_time time not null,
+  end_time time not null,
+  updated_at timestamptz not null default now(),
+  unique (shift_id, date)
+);
+
 alter table public.people enable row level security;
 alter table public.shifts enable row level security;
 alter table public.assignments enable row level security;
+alter table public.shift_times enable row level security;
 
 create policy "public read people" on public.people for select to anon, authenticated using (true);
 create policy "public insert people" on public.people for insert to anon, authenticated with check (true);
@@ -41,12 +53,17 @@ create policy "public insert assignments" on public.assignments for insert to an
 create policy "public update assignments" on public.assignments for update to anon, authenticated using (true) with check (true);
 create policy "public delete assignments" on public.assignments for delete to anon, authenticated using (true);
 
-grant select, insert, update, delete on public.people, public.shifts, public.assignments to anon, authenticated;
+create policy "public read shift_times" on public.shift_times for select to anon, authenticated using (true);
+create policy "public insert shift_times" on public.shift_times for insert to anon, authenticated with check (true);
+create policy "public update shift_times" on public.shift_times for update to anon, authenticated using (true) with check (true);
+create policy "public delete shift_times" on public.shift_times for delete to anon, authenticated using (true);
 
-insert into public.shifts (label, start_time, end_time) values
-  ('Día', '10:00', '18:00'),
-  ('Tarde', '18:30', '23:00'),
-  ('Noche', '23:00', '09:30')
+grant select, insert, update, delete on public.people, public.shifts, public.assignments, public.shift_times to anon, authenticated;
+
+insert into public.shifts (label, position, start_time, end_time) values
+  ('Día', 1, '10:00', '18:00'),
+  ('Tarde', 2, '18:30', '23:00'),
+  ('Noche', 3, '23:00', '09:30')
 on conflict do nothing;
 
 -- Registro de acciones (solo lectura desde el cliente; escribe vía triggers).
@@ -156,7 +173,7 @@ insert into public.app_settings (key, value) values ('future_days', '30')
 on conflict (key) do nothing;
 
 -- Tiempo real (websockets) para ver cambios de otros dispositivos.
-alter publication supabase_realtime add table public.people, public.shifts, public.assignments, public.activity_log, public.app_settings;
+alter publication supabase_realtime add table public.people, public.shifts, public.assignments, public.shift_times, public.activity_log, public.app_settings;
 alter table public.people replica identity full;
 alter table public.shifts replica identity full;
 alter table public.assignments replica identity full;
