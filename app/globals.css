@@ -349,6 +349,10 @@ select {
   gap: 0.5rem;
 }
 
+.mobile-fabs {
+  display: none;
+}
+
 .fab {
   display: grid;
   place-items: center;
@@ -565,5 +569,69 @@ button:focus-visible {
   dialog.config {
     width: 100%;
     border-left: 0;
+  }
+
+  .fabs {
+    display: none;
+  }
+
+  .mobile-fabs {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  .fab-toggle {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.45);
+    color: rgba(226, 232, 240, 0.72);
+    backdrop-filter: blur(5px);
+    cursor: pointer;
+    box-shadow: 0 10px 26px -12px rgba(2, 6, 23, 0.8);
+  }
+
+  .fab-toggle[aria-expanded="true"] {
+    background: rgba(15, 23, 42, 0.8);
+    color: #e2e8f0;
+  }
+
+  .fab-toggle svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .fab-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 9.5rem;
+  }
+
+  .fab-menu button {
+    padding: 0.55rem 0.8rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: left;
+    backdrop-filter: blur(5px);
+    cursor: pointer;
+  }
+
+  .fab-menu button:hover {
+    border-color: #38bdf8;
+    color: #38bdf8;
   }
 }
